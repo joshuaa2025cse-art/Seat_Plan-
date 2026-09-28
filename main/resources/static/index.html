@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeatPlan - Exam Hall Seating Arrangement Generator</title>
+    <meta name="description" content="Intelligent anti-cheating exam hall seating arrangement generator with branch interleaving and visual layout.">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+</head>
+<body>
+
+    <!-- Print Only Header -->
+    <div id="printHeader" class="print-only-header"></div>
+
+    <!-- Application Top Navigation -->
+    <header class="app-header">
+        <div class="header-container">
+            <div class="brand-section">
+                <div class="brand-logo">🎓</div>
+                <div class="brand-text">
+                    <h1>SeatPlan</h1>
+                    <p>Exam Hall Seating Arrangement Generator</p>
+                </div>
+            </div>
+
+            <div class="nav-actions">
+                <button class="btn btn-primary" onclick="openGeneratorModal()" id="btnOpenGen">
+                    <span>⚡ Generate Seating Plan</span>
+                </button>
+                <button class="btn btn-secondary" onclick="triggerPrint()" id="btnPrintPlan">
+                    <span>🖨️ Print Chart</span>
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="resetDemoData()" title="Reload realistic sample data" id="btnResetDemo">
+                    <span>🔄 Reset Demo Data</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="main-wrapper">
+
+        <!-- Live Statistics Cards -->
+        <section class="stats-grid">
+            <div class="stat-card cyan">
+                <div class="stat-icon">🏫</div>
+                <div class="stat-content">
+                    <div class="stat-label">Exam Halls</div>
+                    <div class="stat-value" id="statTotalHalls">0</div>
+                    <div class="stat-sub">Configured Rooms</div>
+                </div>
+            </div>
+
+            <div class="stat-card emerald">
+                <div class="stat-icon">🪑</div>
+                <div class="stat-content">
+                    <div class="stat-label">Total Capacity</div>
+                    <div class="stat-value" id="statTotalCapacity">0</div>
+                    <div class="stat-sub">Available Desks</div>
+                </div>
+            </div>
+
+            <div class="stat-card amber">
+                <div class="stat-icon">👨‍🎓</div>
+                <div class="stat-content">
+                    <div class="stat-label">Registered Students</div>
+                    <div class="stat-value" id="statTotalStudents">0</div>
+                    <div class="stat-sub">Active Candidates</div>
+                </div>
+            </div>
+
+            <div class="stat-card purple">
+                <div class="stat-icon">🏛️</div>
+                <div class="stat-content">
+                    <div class="stat-label">Departments</div>
+                    <div class="stat-value" id="statTotalDepts">0</div>
+                    <div class="stat-sub">Interleaved Branches</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Navigation Tabs -->
+        <nav class="tabs-nav">
+            <button class="tab-btn active" data-tab="visualizer">
+                <span>🖥️ Exam Hall Visualizer</span>
+            </button>
+            <button class="tab-btn" data-tab="halls">
+                <span>🏫 Examination Halls</span>
+            </button>
+            <button class="tab-btn" data-tab="students">
+                <span>👨‍🎓 Students Directory</span>
+            </button>
+            <button class="tab-btn" data-tab="sessions">
+                <span>📅 Exam Sessions</span>
+            </button>
+        </nav>
+
+        <!-- Instant Candidate Seat Finder Hero -->
+        <section class="search-hero">
+            <div class="search-input-wrapper">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="seatSearchInput" class="search-input" placeholder="Quick Seat Finder: Enter Roll Number (e.g. 2024CSE001) or Candidate Name...">
+            </div>
+            <div id="searchResultBox" class="search-result-box" style="display: none; width: 100%;"></div>
+        </section>
+
+        <!-- TAB 1: EXAM HALL VISUALIZER -->
+        <section id="tab-view-visualizer" class="tab-view">
+            <!-- Controls Toolbar -->
+            <div class="controls-bar">
+                <div class="filter-group">
+                    <label class="control-label" for="sessionSelect">Select Exam Session:</label>
+                    <select id="sessionSelect" class="form-select"></select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="control-label" for="hallSelect">Select Hall:</label>
+                    <select id="hallSelect" class="form-select"></select>
+                </div>
+
+                <div class="filter-group">
+                    <span class="seat-badge ec" style="font-size: 0.75rem; padding: 0.35rem 0.65rem;">
+                        🛡️ Anti-Cheating Interleaving Active
+                    </span>
+                </div>
+            </div>
+
+            <!-- Visualizer Container -->
+            <div class="hall-visualizer-container" style="margin-top: 1.25rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                    <div>
+                        <h2 id="currentHallTitle" style="font-family: var(--font-heading); font-size: 1.3rem;">LH-101: Main Block</h2>
+                        <p id="currentHallMeta" style="color: var(--text-muted); font-size: 0.8rem;">Loading grid configuration...</p>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-secondary btn-sm" onclick="triggerPrint()">
+                            <span>🖨️ Print This Hall's Seating Chart</span>
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="refreshHallView()">
+                            <span>🔄 Refresh Grid</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Teacher Podium & Blackboard -->
+                <div class="hall-front-podium">
+                    <div class="podium-title">
+                        <span>👨‍🏫 FRONT OF EXAM HALL / INVIGILATOR PODIUM & BOARD</span>
+                    </div>
+                </div>
+
+                <!-- Entrance / Exit Doors -->
+                <div class="hall-doors-row">
+                    <span class="door-indicator">🚪 Entrance Door</span>
+                    <span class="door-indicator">🚪 Emergency Exit</span>
+                </div>
+
+                <!-- Dynamic Seating Grid -->
+                <div class="hall-grid-scroll">
+                    <div id="hallGrid" class="hall-grid">
+                        <!-- Seat cards injected dynamically by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Department & Status Color Legend -->
+                <div class="legend-bar">
+                    <div class="legend-item">
+                        <span class="legend-pill cs"></span>
+                        <span>Computer Science (CSE)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-pill ec"></span>
+                        <span>Electronics (ECE)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-pill me"></span>
+                        <span>Mechanical (ME)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-pill ce"></span>
+                        <span>Civil Engineering (CE)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-pill vacant"></span>
+                        <span>Vacant Desk</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: HALLS MANAGEMENT -->
+        <section id="tab-view-halls" class="tab-view" style="display: none;">
+            <div class="table-container">
+                <div class="table-header-bar">
+                    <h3 style="font-family: var(--font-heading); font-size: 1.15rem;">Examination Halls</h3>
+                    <button class="btn btn-primary btn-sm" onclick="openModal('addHallModal')">
+                        <span>+ Add New Hall</span>
+                    </button>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="custom-table">
+                        <thead>
+                            <tr>
+                                <th>Hall Number</th>
+                                <th>Hall Name / Building</th>
+                                <th>Dimensions (Rows × Cols)</th>
+                                <th>Capacity</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hallsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: STUDENTS MANAGEMENT -->
+        <section id="tab-view-students" class="tab-view" style="display: none;">
+            <div class="table-container">
+                <div class="table-header-bar">
+                    <h3 style="font-family: var(--font-heading); font-size: 1.15rem;">Registered Students</h3>
+                    <button class="btn btn-primary btn-sm" onclick="openModal('addStudentModal')">
+                        <span>+ Add Student</span>
+                    </button>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="custom-table">
+                        <thead>
+                            <tr>
+                                <th>Roll Number</th>
+                                <th>Student Name</th>
+                                <th>Class / Branch</th>
+                                <th>Section</th>
+                                <th>Semester</th>
+                                <th>Email</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: SESSIONS MANAGEMENT -->
+        <section id="tab-view-sessions" class="tab-view" style="display: none;">
+            <div class="table-container">
+                <div class="table-header-bar">
+                    <h3 style="font-family: var(--font-heading); font-size: 1.15rem;">Scheduled Exam Sessions</h3>
+                    <button class="btn btn-primary btn-sm" onclick="openModal('addSessionModal')">
+                        <span>+ Create Exam Session</span>
+                    </button>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="custom-table">
+                        <thead>
+                            <tr>
+                                <th>Session Name</th>
+                                <th>Course / Subject</th>
+                                <th>Date</th>
+                                <th>Time Slot</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sessionsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL: Seating Plan Generator -->
+    <div id="generatorModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚡ Generate Seating Arrangement</h3>
+                <button class="modal-close-btn" onclick="closeModal('generatorModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="genSessionSelect">1. Target Exam Session</label>
+                    <select id="genSessionSelect" class="form-select"></select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">2. Select Participating Halls</label>
+                    <div id="genHallCheckboxes" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; background: var(--bg-surface); padding: 0.75rem; border-radius: 8px;">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">3. Select Student Departments</label>
+                    <div id="genDeptCheckboxes" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; background: var(--bg-surface); padding: 0.75rem; border-radius: 8px;">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="genStrategySelect">4. Anti-Cheating Allocation Strategy</label>
+                    <select id="genStrategySelect" class="form-select">
+                        <option value="ALTERNATE_DEPARTMENT" selected>🛡️ Alternate Department Interleaved (Recommended - No adjacent same branch)</option>
+                        <option value="CHECKERBOARD">♟️ Checkerboard Matrix (2D Alternating branches)</option>
+                        <option value="SEQUENTIAL">📋 Sequential by Roll Number</option>
+                    </select>
+                    <span class="form-help">Prevents students of the same department from sitting side-by-side.</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('generatorModal')">Cancel</button>
+                <button class="btn btn-primary" id="btnSubmitGen" onclick="executeArrangementGeneration()">
+                    <span>⚡ Generate Now</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Seat Details -->
+    <div id="seatDetailModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3>Allocated Seat Information</h3>
+                <button class="modal-close-btn" onclick="closeModal('seatDetailModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="seatDetailContent">
+                <!-- Injected dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('seatDetailModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Add Hall -->
+    <div id="addHallModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Add New Examination Hall</h3>
+                <button class="modal-close-btn" onclick="closeModal('addHallModal')">&times;</button>
+            </div>
+            <form onsubmit="handleAddHall(event)">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Hall Number / Code</label>
+                        <input type="text" name="hallNumber" class="form-input" placeholder="e.g. LH-201" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Hall Name</label>
+                        <input type="text" name="name" class="form-input" placeholder="e.g. Science Block Lecture Hall 1" required>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;">
+                        <div class="form-group">
+                            <label class="form-label">Total Rows</label>
+                            <input type="number" id="hallTotalRows" name="totalRows" min="1" max="25" class="form-input" value="5" required oninput="updateCalculatedCapacity()">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Columns (Seats/Row)</label>
+                            <input type="number" id="hallTotalCols" name="totalColumns" min="1" max="25" class="form-input" value="6" required oninput="updateCalculatedCapacity()">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Capacity (Desks)</label>
+                            <input type="number" id="hallCapacity" name="capacity" min="1" max="625" class="form-input" value="30" required>
+                        </div>
+                    </div>
+                    <span class="form-help" style="font-size: 0.75rem; color: var(--text-muted);">Declared capacity limits max examinees allocated to this hall.</span>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addHallModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Hall</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Add Student -->
+    <div id="addStudentModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Register Student</h3>
+                <button class="modal-close-btn" onclick="closeModal('addStudentModal')">&times;</button>
+            </div>
+            <form onsubmit="handleAddStudent(event)">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Roll Number</label>
+                        <input type="text" name="rollNumber" class="form-input" placeholder="e.g. 2024CSE050" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" name="name" class="form-input" placeholder="e.g. John Doe" required>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Class / Branch</label>
+                            <select name="department" class="form-select" required>
+                                <option value="Computer Science">Computer Science</option>
+                                <option value="Electronics & Communication">Electronics & Communication</option>
+                                <option value="Mechanical Engineering">Mechanical Engineering</option>
+                                <option value="Civil Engineering">Civil Engineering</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Section</label>
+                            <input type="text" name="section" class="form-input" placeholder="e.g. A" value="A" required>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Semester</label>
+                            <input type="number" name="semester" min="1" max="10" class="form-input" value="4" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email (Optional)</label>
+                            <input type="email" name="email" class="form-input" placeholder="student@univ.edu">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addStudentModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Student</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Add Exam Session -->
+    <div id="addSessionModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Schedule New Exam Session</h3>
+                <button class="modal-close-btn" onclick="closeModal('addSessionModal')">&times;</button>
+            </div>
+            <form onsubmit="handleAddSession(event)">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Session Name</label>
+                        <input type="text" name="sessionName" class="form-input" placeholder="e.g. End-Term Examination Fall 2026" required>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Subject Code</label>
+                            <input type="text" name="subjectCode" class="form-input" placeholder="e.g. CS402" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Subject Name</label>
+                            <input type="text" name="subjectName" class="form-input" placeholder="e.g. Operating Systems" required>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Exam Date</label>
+                            <input type="date" name="examDate" class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Time Slot</label>
+                            <input type="text" name="sessionTime" class="form-input" placeholder="e.g. 09:30 AM - 12:30 PM" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addSessionModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Session</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>
